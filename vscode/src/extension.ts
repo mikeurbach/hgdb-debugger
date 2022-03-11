@@ -114,7 +114,7 @@ class HGDBDebugAdapterDescriptorFactory implements vscode.DebugAdapterDescriptor
     private server?: Net.Server;
     public session: HGDBDebugSession;
 
-    createDebugAdapterDescriptor(session: vscode.DebugSession, executable: vscode.DebugAdapterExecutable | undefined): vscode.ProviderResult<vscode.DebugAdapterDescriptor> {
+    async createDebugAdapterDescriptor(session: vscode.DebugSession, executable: vscode.DebugAdapterExecutable | undefined): Promise<vscode.ProviderResult<vscode.DebugAdapterDescriptor>> {
 
         if (!this.server) {
             // start listening on the part given by the configuration
@@ -132,7 +132,16 @@ class HGDBDebugAdapterDescriptorFactory implements vscode.DebugAdapterDescriptor
         }
 
         // make VS Code connect to debug server
-        return new vscode.DebugAdapterServer((<Net.AddressInfo>this.server.address()).port);
+	const address = (<Net.AddressInfo>this.server.address());
+	const serverUri = vscode.Uri.parse(`http://localhost:${address.port}`);
+	const fullUri = await vscode.env.asExternalUri(serverUri);
+	const splitUri = fullUri.authority.split(":");
+	const fullHost = splitUri[0];
+	const fullPort = parseInt(splitUri[1]);
+	vscode.window.showWarningMessage(`serverUri: ${serverUri}, fullHost: ${fullHost}, fullPort: ${fullPort}`)
+        return new Promise<vscode.DebugAdapterServer>((resolve) => {
+	  resolve(new vscode.DebugAdapterServer(fullPort, fullHost));
+        });
     }
 
     dispose() {
